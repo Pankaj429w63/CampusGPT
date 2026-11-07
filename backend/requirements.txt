@@ -1,0 +1,13 @@
+# Pinned backend dependencies for CampusGPT RAG & FastAPI
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
+httpx==0.28.1
+chromadb==1.5.9
+sentence-transformers==6.2.0
+pypdf==7.0.0
+python-docx==1.2.0
+pytest==9.2.0
+pytest-asyncio==1.4.1.post1
+
