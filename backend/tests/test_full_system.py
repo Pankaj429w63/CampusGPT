@@ -26,11 +26,12 @@ def test_api_agents_status():
     assert len(data["available_tools"]) == 4
 
 def test_api_ask_deterministic_timetable():
+    # Ambiguous query without specifying section prompts clarification rather than guessing
     res = client.post("/ask", json={"question": "What is my timetable today?"})
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "success"
-    assert "Timetable" in data["answer"]
+    assert "Please specify which class section" in data["answer"]
     assert len(data["sources"]) >= 1
 
 def test_api_ask_prompt_injection_blocked():

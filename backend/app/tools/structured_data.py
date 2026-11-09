@@ -100,15 +100,49 @@ FACULTY_DIRECTORY = [
     }
 ]
 
-# Structured Academic Calendar & Regulations
+# Structured Academic Calendar & Regulations (Derived directly from Academic_Calendar_2026-27.pdf.pdf)
 ACADEMIC_CALENDAR = {
-    "current_semester": "Spring / Even Semester 2026",
-    "commencement_of_classes": "January 12, 2026",
-    "continuous_internal_evaluation_1": "March 2 - March 7, 2026",
-    "continuous_internal_evaluation_2": "April 13 - April 18, 2026",
-    "last_instruction_day": "May 8, 2026",
-    "semester_end_examinations": "May 18 - June 5, 2026",
-    "declaration_of_results": "June 25, 2026",
+    "academic_year": "2026-2027",
+    "odd_semester": {
+        "term": "B.Tech First Year - ODD 2026 (July 2026 - December 2026)",
+        "induction_registration": "July 20 to July 26, 2026",
+        "session_commencement": "July 20, 2026",
+        "teaching_commencement": "July 27, 2026",
+        "open_house": "August 17 to August 22, 2026",
+        "student_consultative_meeting": "August 24 to August 29, 2026",
+        "mid_term_feedback": "August 31 to September 5, 2026",
+        "unit_test": "October 5 to October 10, 2026",
+        "techfest_cultural_fest": "October 12 to October 17, 2026",
+        "exam_form_filling_start": "November 2, 2026 (tentative)",
+        "diwali_vacation": "November 6 to November 11, 2026",
+        "exam_form_filling_end": "November 16, 2026 (tentative, without fine)",
+        "preparatory_leave": "November 30 to December 5, 2026",
+        "end_semester_examination": "December 7 to December 12, 2026",
+        "vacation": "December 21 to December 31, 2026",
+        "next_session_start": "January 4, 2027"
+    },
+    "even_semester": {
+        "term": "B.Tech First Year - EVEN 2027 (January 2027 to June 2027)",
+        "registration_and_commencement": "January 4 to January 9, 2027 (B.Tech PROTA)",
+        "open_house": "February 15 to February 20, 2027",
+        "student_consultative_meeting": "February 22 to February 27, 2027",
+        "mid_term_feedback": "March 1 to March 6, 2027",
+        "unit_test": "March 8 to March 13, 2027",
+        "exam_form_filling_start": "March 26, 2027 (tentative)",
+        "exam_form_filling_end": "April 9, 2027 (tentative, without fine)",
+        "industry_conclave": "April 12 to April 17, 2027",
+        "extended_exam_form_filling_end": "April 23, 2027 (tentative, with super late fine)",
+        "final_practical_exams": "April 26 to May 1, 2027",
+        "backlog_exam_and_prep_leave": "May 3 to May 15, 2027",
+        "end_semester_examination": "May 17 to May 29, 2027",
+        "vacation_and_vac": "May 31 to June 30, 2027",
+        "next_session_start": "July 1, 2027"
+    },
+    "authorities": [
+        "Dr. Mangal Singh (Exam Head, SIT)",
+        "Dr. Deepali Vora (Dy. Director Academics, SIT)",
+        "Dr. Ketan Kotecha (Director, SIT)"
+    ],
     "mandatory_attendance_threshold": "75%",
     "minimum_passing_grade": "40% in SEE and 40% in aggregate (Grade P)",
     "cie_weightage": "40%",
@@ -139,9 +173,13 @@ def query_faculty_tool(faculty_name_or_subject: str) -> Dict[str, Any]:
     matches = []
     
     for f in FACULTY_DIRECTORY:
-        name_match = query_str in f["name"].lower()
-        dept_match = query_str in f["department"].lower()
-        course_match = any(query_str in c.lower() for c in f["courses"])
+        name_lower = f["name"].lower()
+        dept_lower = f["department"].lower()
+        
+        # Match either query substring in directory field OR directory field substring in query
+        name_match = (query_str in name_lower) or (name_lower in query_str)
+        dept_match = (query_str in dept_lower) or (dept_lower in query_str)
+        course_match = any((query_str in c.lower()) or (c.lower() in query_str) for c in f["courses"])
         
         if name_match or dept_match or course_match:
             matches.append(f)

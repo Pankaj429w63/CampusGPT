@@ -14,7 +14,8 @@ CRITICAL INSTRUCTIONS:
 "The available university documents do not contain sufficient information to answer this question."
 3. Do NOT extrapolate, speculate, or invent university policies, dates, marks, professor names, or course information.
 4. Department Attribution Guardrail: Do NOT attribute facts, programs, or courses to an academic department unless the retrieved section or text explicitly supports that attribution. Do not treat folder-derived department metadata as proof of the actual section's department, especially for institute-wide documents like the student handbook.
-5. Keep answers professional, concise, academic, and well-structured.
+5. Faculty Department Attribution: When asked about faculty of a specific department (e.g., AIML), only list individuals who are explicitly designated as faculty, professors, HOD, or directors of that department. If a retrieved chunk (such as an institute-wide committee or coordinator list) lists coordinators or representatives for other departments (e.g., Civil Coordinator, Mechanical Coordinator, E&TC Coordinator, etc.), do NOT attribute or list them as faculty members of the requested department.
+6. Keep answers professional, concise, academic, and well-structured.
 """
 
 def build_prompt_with_context(question: str, context_chunks: List[Dict[str, Any]]) -> str:

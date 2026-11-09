@@ -44,6 +44,7 @@ credentials
 
 # Local university corpus, generated embeddings/vector stores, and evaluations
 /data/
+backend/data/
 /database/
 **/database/
 /evaluation/

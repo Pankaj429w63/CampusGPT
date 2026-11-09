@@ -1,42 +1,135 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClockIcon, BookOpenIcon, UsersIcon, FileTextIcon, SettingsIcon } from './icons';
 
+interface ScheduleEntry {
+  slot?: number;
+  time?: string;
+  time_slot?: string;
+  day?: string;
+  class_section?: string;
+  subject?: string;
+  subject_name?: string;
+  subject_code?: string;
+  faculty?: string;
+  faculty_name?: string;
+  faculty_initials?: string;
+  room?: string;
+  room_name?: string;
+  room_code?: string;
+  batch?: string;
+  is_break?: boolean;
+  is_activity?: boolean;
+  concurrent_batches?: Array<{
+    batch: string;
+    subject: string;
+    faculty: string;
+    room: string;
+  }>;
+}
+
 export function TimetableView() {
-  const schedule = [
-    { time: '09:00 AM - 10:30 AM', subject: 'Data Structures & Algorithms', hall: 'Room 302, Engineering Block', professor: 'Dr. Sharma' },
-    { time: '10:45 AM - 12:15 PM', subject: 'Database Management Systems', hall: 'Computer Lab 3', professor: 'Prof. Mehta' },
-    { time: '01:30 PM - 03:00 PM', subject: 'Artificial Intelligence & Neural Nets', hall: 'Auditorium Hall B', professor: 'Dr. Rao' },
-    { time: '03:15 PM - 04:45 PM', subject: 'Computer Networks Workshop', hall: 'Networking Lab', professor: 'Prof. Verma' },
+  const [selectedSheet, setSelectedSheet] = useState('SY-A');
+  const [selectedDay, setSelectedDay] = useState('Monday');
+  const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const availableSheets = [
+    'SY-A', 'SY-B', 'SY-C', 'TY-A', 'TY-B', 'TY-C', 'B.Tech-A', 'B.Tech-B', 'M.Tech-FY', 'M.Tech-SY'
   ];
+
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  useEffect(() => {
+    async function fetchSchedule() {
+      setLoading(true);
+      try {
+        const res = await fetch(`http://localhost:8000/timetable/class/${selectedSheet}?day=${selectedDay}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSchedule(data.entries || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch schedule from backend:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSchedule();
+  }, [selectedSheet, selectedDay]);
 
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Academic Timetable</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Live schedule overview across university departments and lecture halls.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Academic Timetable</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Live schedule parsed directly from official Department of AIML Master Timetable workbook.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedSheet}
+            onChange={(e) => setSelectedSheet(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-blue-500 focus:outline-none"
+          >
+            {availableSheets.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={selectedDay}
+            onChange={(e) => setSelectedDay(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-blue-500 focus:outline-none"
+          >
+            {days.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {schedule.map((item, idx) => (
-          <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 mb-2">
-              <ClockIcon className="h-3.5 w-3.5" />
-              <span>{item.time}</span>
+      {loading ? (
+        <div className="p-8 text-center text-sm text-slate-500">Loading schedule...</div>
+      ) : schedule.length === 0 ? (
+        <div className="p-8 text-center text-sm text-slate-500">No classes scheduled for {selectedSheet} on {selectedDay}.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {schedule.map((item, idx) => (
+            <div
+              key={idx}
+              className={`rounded-xl border p-4 ${
+                item.is_break
+                  ? 'border-amber-200 bg-amber-50/60'
+                  : item.is_activity
+                  ? 'border-indigo-200 bg-indigo-50/40'
+                  : 'border-slate-200 bg-slate-50/70'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600">
+                  <ClockIcon className="h-3.5 w-3.5" />
+                  <span>{item.time_slot}</span>
+                </div>
+                {item.batch && item.batch !== 'All' && (
+                  <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                    Batch {item.batch}
+                  </span>
+                )}
+              </div>
+              <h4 className="font-semibold text-slate-900 text-sm">
+                {item.subject_name || item.subject_code}
+              </h4>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                <span>{item.room_name || item.room_code || 'Main Hall'}</span>
+                <span className="font-medium text-slate-700">{item.faculty_name || item.faculty_initials || ''}</span>
+              </div>
             </div>
-            <h4 className="font-semibold text-slate-900 text-sm">{item.subject}</h4>
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span>{item.hall}</span>
-              <span className="font-medium text-slate-700">{item.professor}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center">
         <p className="text-xs text-slate-500">
-          Tip: You can query CampusGPT directly in the chat tab with &quot;What is my timetable today?&quot;
+          Tip: You can query CampusGPT directly in the chat tab with &quot;What is my timetable today?&quot; or &quot;Show me SY-A schedule for Monday&quot;
         </p>
       </div>
     </div>

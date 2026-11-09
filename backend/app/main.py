@@ -31,6 +31,7 @@ from app.agents.planner import (
     planner_metrics,
     classify_query_intent
 )
+from app.timetable.service import timetable_service
 from app.rag.pipeline import scan_and_ingest_documents, discover_document_files
 from app.rag.vectorstore import get_collection_stats
 from app.services.llm import check_ollama_health
@@ -284,3 +285,79 @@ def get_evaluation_summary():
             "message": "No evaluation has been executed yet. Call POST /evaluate to run benchmark."
         }
     return _latest_evaluation_report
+
+
+# =========================================================================
+# Structured Timetable Endpoints
+# =========================================================================
+@app.get("/timetable/sheets")
+def get_timetable_sheets():
+    """Returns available timetable sheets/classes."""
+    data = timetable_service.get_data()
+    return {
+        "status": "success",
+        "sheets": data.sheets_parsed,
+        "total_entries": data.total_entries
+    }
+
+
+@app.get("/timetable/class/{sheet_name}")
+def get_class_schedule(sheet_name: str, day: Optional[str] = None, batch: Optional[str] = None):
+    """Returns timetable entries for a specific class sheet (e.g. SY-A, TY-B, M.Tech-FY)."""
+    canonical_sheet = timetable_service.normalize_sheet_alias(sheet_name) or sheet_name.upper()
+    entries = timetable_service.get_class_timetable(canonical_sheet, day=day, batch=batch)
+    return {
+        "status": "success",
+        "sheet_name": canonical_sheet,
+        "day": day or "All Days",
+        "batch": batch or "All Batches",
+        "count": len(entries),
+        "entries": [e.model_dump() for e in entries]
+    }
+
+
+@app.get("/timetable/today/{sheet_name}")
+def get_today_schedule(sheet_name: str, batch: Optional[str] = None):
+    """Returns today's timetable for a specific class section."""
+    canonical_sheet = timetable_service.normalize_sheet_alias(sheet_name) or sheet_name.upper()
+    return timetable_service.get_today_timetable(canonical_sheet, batch=batch)
+
+
+@app.get("/timetable/next/{sheet_name}")
+def get_next_class_schedule(sheet_name: str, batch: Optional[str] = None):
+    """Returns currently ongoing or next upcoming class for a section."""
+    canonical_sheet = timetable_service.normalize_sheet_alias(sheet_name) or sheet_name.upper()
+    return timetable_service.get_next_class(canonical_sheet, batch=batch)
+
+
+@app.get("/timetable/free/{sheet_name}")
+def get_free_periods_schedule(sheet_name: str, day: Optional[str] = None, batch: Optional[str] = None):
+    """Returns free/unallocated periods for a class section."""
+    canonical_sheet = timetable_service.normalize_sheet_alias(sheet_name) or sheet_name.upper()
+    free_slots = timetable_service.get_free_periods(canonical_sheet, day=day, batch=batch)
+    return {
+        "status": "success",
+        "sheet_name": canonical_sheet,
+        "day": day or "Today",
+        "free_slots": free_slots
+    }
+
+
+@app.get("/timetable/search")
+def search_timetable(faculty: Optional[str] = None, subject: Optional[str] = None, room: Optional[str] = None):
+    """Searches timetable entries across all sheets by faculty, subject or room."""
+    if faculty:
+        results = timetable_service.search_by_faculty(faculty)
+    elif subject:
+        results = timetable_service.search_by_subject(subject)
+    elif room:
+        results = timetable_service.search_by_room(room)
+    else:
+        raise HTTPException(status_code=400, detail="Must provide at least one query parameter: faculty, subject, or room.")
+    
+    return {
+        "status": "success",
+        "count": len(results),
+        "results": [e.model_dump() for e in results]
+    }
+
