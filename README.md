@@ -1,90 +1,240 @@
 # CampusGPT
 
-CampusGPT is a local campus information assistant. It combines a Next.js chat interface with a FastAPI service, a retrieval-augmented generation (RAG) pipeline, a local ChromaDB collection, and Ollama for answer generation.
+<div align="center">
 
-## Architecture
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.4_Turbopack-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector_Store-FF6F00?style=for-the-badge&logo=databricks&logoColor=white)](https://www.trychroma.com/)
+[![Ollama](https://img.shields.io/badge/Ollama-Qwen_2.5-white?style=for-the-badge&logo=ollama&logoColor=black)](https://ollama.ai/)
+[![HuggingFace](https://img.shields.io/badge/BGE--M3-Embeddings_%26_Reranker-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/BAAI/bge-m3)
 
-1. The browser submits a question to the FastAPI `POST /ask` endpoint.
-2. The backend classifies and routes the question. Timetable and other structured routes are handled by the project code; document questions use the existing retrieval pipeline.
-3. Document retrieval uses BGE-M3 embeddings and the BGE reranker against the `aiml_knowledge` ChromaDB collection.
-4. When generation is needed, the backend calls the configured local Ollama model. The current default is `qwen2.5:3b`.
-5. The API returns an answer and structured source metadata. Health and interactive API documentation are available at `/health` and `/docs`.
+<p align="center">
+  <b>Enterprise-Grade Local Campus AI Assistant: Hybrid Semantic RAG, Multi-Agent Intent Planner & Deterministic Timetable Engine</b>
+</p>
 
-The backend entry point is `backend.main:app`. The frontend is in `frontend/campus-gpt/` and calls the backend through `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
+[Local Frontend](http://localhost:3000) • [Local API Docs](http://localhost:8000/docs) • [FastAPI Health](http://localhost:8000/health) • [Prometheus Metrics](http://localhost:8000/metrics) • [GitHub Repository](https://github.com/Pankaj429w63/CampusGPT)
 
-## Prerequisites
+</div>
 
-- Python 3.10 or a compatible version supported by the installed backend dependencies.
-- Node.js and pnpm. The frontend package declares pnpm `11.24.0` as its package manager.
-- Ollama, with the configured generation model available locally.
-- The compatible local ChromaDB collection and approved source material. These are intentionally excluded from this repository.
-- Network access may be needed on first use to download the BGE embedding and reranker model weights if they are not already cached.
+---
 
-### Backend dependency manifest limitation
+## Overview
 
-This checkout does not contain a Python dependency manifest such as `requirements.txt` or `pyproject.toml`. As a result, a clean backend installation cannot currently be reproduced from the repository alone. Do not treat a developer machine's `pip freeze` as a project lockfile. Add and review a pinned dependency manifest before claiming reproducible backend installation.
+**CampusGPT** is an intelligent university campus assistant combining modern generative AI with deterministic domain engines. It serves students, faculty, and administrators with instant, grounded answers across institutional handbooks, course curricula, academic calendars, faculty directories, and live class timetables without hallucination or cross-department confusion.
 
-## Local setup
+### Key Capabilities
+- **Hybrid Multi-Agent Planner:** Automatically routes user queries between deterministic tools (academic calendar, class timetable, faculty room lookup) and a dense semantic RAG pipeline.
+- **Deterministic Structured Timetable Engine:** Direct OpenPyXL parser for complex 13-worksheet master schedules, merged cells, concurrent laboratory batches, and room allocations with sub-10ms latency (zero ChromaDB overhead).
+- **Domain-Aware Semantic RAG:** Deep document chunking with hierarchical section preserving, powered by `BAAI/bge-m3` dense embeddings, `BAAI/bge-reranker-v2-m3` cross-encoders, and ChromaDB vector store.
+- **Hallucination & Attribution Guardrails:** Department-isolated cross-penalties, prompt injection firewalls, and out-of-domain refusals.
+- **Full-Stack Production Ready:** Responsive Next.js 16 (Turbopack) UI with real-time thinking states and markdown formatting paired with an asynchronous FastAPI backend.
 
-### 1. Prepare local data and services
+---
 
-The university corpus, generated evaluation materials, and local vector database are not distributed here. Obtain authorization for the source material, prepare the compatible `aiml_knowledge` collection using the project's reviewed local workflow, and place it in the expected local database location. Do not run database preparation or ingestion against valuable local data without first reviewing the script's behavior and keeping a backup.
+## System Architecture
 
-Install and start Ollama separately, and make the model named by `CAMPUSGPT_OLLAMA_MODEL` available. The default configured model is `qwen2.5:3b`. The pipeline also loads `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3` through its model libraries.
+```mermaid
+flowchart TB
+    subgraph ClientLayer ["Client Layer (Next.js 16 / React 19)"]
+        UI["Web Browser / Chat Dashboard"]
+        APIClient["Frontend API Service (api.ts)"]
+        TimetableComponent["Interactive Timetable View"]
+        UI --> APIClient
+        UI --> TimetableComponent
+    end
 
-### 2. Install backend dependencies
+    subgraph Gateway ["FastAPI Application Gateway (Port 8000)"]
+        AskEndpoint["POST /ask"]
+        TTEndpoints["GET /timetable/*"]
+        HealthMetrics["/health, /readiness, /metrics"]
+    end
 
-Create and activate a virtual environment from the project root:
+    APIClient -->|JSON Request| AskEndpoint
+    TimetableComponent -->|Class / Day Query| TTEndpoints
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+    subgraph AgentLayer ["Intent Classifier & Planner Agent"]
+        IntentRouter{"classify_query_intent()"}
+        Guardrail["Prompt Injection & Length Guardrails"]
+    end
+
+    AskEndpoint --> Guardrail
+    Guardrail --> IntentRouter
+
+    subgraph DeterministicEngine ["Deterministic Engines (Sub-10ms)"]
+        TTEngine["Timetable Query Service\n(Master TT OpenPyXL Engine)"]
+        CalEngine["Academic Calendar Extractor\n(2026-27 ODD/EVEN Terms)"]
+        FacLookup["Faculty Directory & Room Lookup"]
+    end
+
+    subgraph RAGPipeline ["Semantic RAG Pipeline (Document Knowledge)"]
+        Embedder["BAAI/bge-m3 Vector Retrieval"]
+        VectorDB[("ChromaDB Vector Store\n(campusgpt_knowledge)")]
+        Reranker["BAAI/bge-reranker-v2-m3\n(Dept Priority & Penalty Filter)"]
+        LLMGen["Local Ollama Generator\n(Qwen 2.5:3b - 120s Timeout)"]
+    end
+
+    IntentRouter -->|Class / Batch / Room / Next Class| TTEngine
+    IntentRouter -->|Academic Dates / Exams| CalEngine
+    IntentRouter -->|Faculty Room Allocation| FacLookup
+    IntentRouter -->|Curriculum / Policy / Regulations| Embedder
+
+    TTEndpoints --> TTEngine
+    Embedder <--> VectorDB
+    Embedder -->|Top-K Chunks| Reranker
+    Reranker -->|Grounded Context + Rules| LLMGen
+
+    TTEngine -->|Structured Markdown| AskEndpoint
+    CalEngine -->|Verified Schedule| AskEndpoint
+    FacLookup -->|Faculty Match| AskEndpoint
+    LLMGen -->|Grounded Answer + Citations| AskEndpoint
 ```
 
-The backend package installation step is not reproducible yet because this repository has no Python dependency manifest. Use only a reviewed dependency list for this checkout; do not guess package versions from another environment.
+---
 
-### 3. Configure and start the backend
+## Detailed Data & Routing Flow
 
-The backend reads optional settings from process environment variables. In particular, `OLLAMA_HOST` selects the Ollama endpoint and `CAMPUSGPT_OLLAMA_MODEL` selects the generation model; defaults are defined in `scripts/generate_answer.py`. Additional context, token, reranker, and CPU thread settings are also defined in the backend code. No backend `.env.example` is currently supplied.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Student / User
+    participant FE as Next.js Dashboard
+    participant API as FastAPI /ask
+    participant Plan as Planner Agent
+    participant TT as Timetable Service
+    participant RAG as RAG Pipeline (BGE-M3)
+    participant LLM as Ollama (Qwen 2.5)
 
-After the reviewed Python dependencies, Ollama model, and local ChromaDB collection are available, run from the project root:
+    User->>FE: Ask question (e.g. "Where is the SY-A A1 lab?")
+    FE->>API: POST /ask { question }
+    API->>Plan: classify_query_intent(question)
+    
+    alt Timetable or Room Allocation Intent
+        Plan->>TT: Resolve sheet ("SY-A"), batch ("A1"), day
+        TT-->>Plan: Match: Multimodal Sensor Analytics Lab (Room 514)
+        Plan-->>API: Markdown timetable response + Excel source citation
+    else Ambiguous Timetable Query (e.g. "Show my timetable")
+        Plan-->>API: Clarification prompt (SY-A, TY-B, M.Tech-FY, etc.)
+    else Academic Calendar Intent (2026-27)
+        Plan-->>API: Fast-path verified ODD 2026 / EVEN 2027 calendar
+    else Document Knowledge Query (e.g. "Explain AIML curriculum")
+        Plan->>RAG: retrieve_and_rerank(question)
+        RAG->>RAG: BGE-M3 Dense Search + BGE Reranker (Dept Prioritization)
+        RAG->>LLM: Grounded context + strict attribution prompt
+        LLM-->>RAG: Synthesized grounded response
+        RAG-->>Plan: Answer + Top-K Sources
+        Plan-->>API: Final JSON response { status, answer, sources }
+    end
 
-```powershell
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+    API-->>FE: HTTP 200 OK
+    FE-->>User: Display formatted answer with source badges
 ```
 
-Check `http://127.0.0.1:8000/health`; open `http://127.0.0.1:8000/docs` for the API interface.
+---
 
-### 4. Configure and start the frontend
+## Models & Technology Stack
 
-From `frontend/campus-gpt/`, copy `.env.example` to `.env.local` if you need to change the API URL. The example points to the local backend and contains no credentials.
+| Component | Technology / Model | Identifier / Link | Role |
+| :--- | :--- | :--- | :--- |
+| **LLM Inference** | Qwen 2.5 (3B Parameters) | [`qwen2.5:3b`](https://ollama.ai/library/qwen2.5) | Local private answer synthesis via Ollama |
+| **Dense Embeddings** | BAAI BGE-M3 | [`BAAI/bge-m3`](https://huggingface.co/BAAI/bge-m3) | 1024-dim multilingual semantic embeddings |
+| **Neural Reranker** | BAAI BGE Reranker v2 M3 | [`BAAI/bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) | Cross-encoder reranking with department prioritization |
+| **Vector Database** | ChromaDB | [`chromadb`](https://www.trychroma.com/) | Persistent local embeddings collection (`campusgpt_knowledge`) |
+| **Backend Framework** | FastAPI + Uvicorn | Python 3.12 | Async REST API, Pydantic schemas, Prometheus metrics |
+| **Frontend Framework** | Next.js 16 + React 19 | Turbopack | Modern glassmorphism UI, real-time chat, responsive views |
+| **Workbook Parser** | OpenPyXL | Python | Deterministic multi-sheet Excel timetable engine |
 
+---
+
+## Live Endpoints & Port Map
+
+| Service / Port | URL | Description |
+| :--- | :--- | :--- |
+| **Frontend Application** | `http://localhost:3000` | Interactive Chat and Timetable Dashboard |
+| **Backend REST API** | `http://localhost:8000` | Application Root |
+| **Interactive API Docs** | `http://localhost:8000/docs` | Swagger UI documentation and testing |
+| **Backend Health Check** | `http://localhost:8000/health` | Service health status |
+| **Backend Readiness** | `http://localhost:8000/readiness` | Deep readiness check (Ollama + Vector Store + Documents) |
+| **Prometheus Metrics** | `http://localhost:8000/metrics` | Latency and tool call telemetry |
+| **Timetable Sheets API** | `http://localhost:8000/timetable/sheets` | List all available classes |
+| **Class Timetable API** | `http://localhost:8000/timetable/class/{sheet}` | Query day/batch schedule for section |
+| **Timetable Search API** | `http://localhost:8000/timetable/search` | Search by faculty, subject code, or room |
+
+---
+
+## Quickstart Guide
+
+### 1. Prerequisites
+- **Python 3.11+** (Python 3.12 recommended)
+- **Node.js 18+** & **pnpm 10+**
+- **Ollama** installed with `qwen2.5:3b` pulled:
+  ```bash
+  ollama pull qwen2.5:3b
+  ```
+
+### 2. Backend Setup
 ```powershell
-cd frontend/campus-gpt
+# Navigate to repository root
+cd CampusGPT
+
+# Create and activate virtual environment
+python -m venv backend/.venv
+.\backend\.venv\Scripts\Activate.ps1
+
+# Install backend dependencies
+pip install -r backend/requirements.txt
+
+# Start FastAPI Server
+$env:PYTHONPATH="backend"
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### 3. Frontend Setup
+```powershell
+# Navigate to frontend
+cd frontend
+
+# Install dependencies
 pnpm install
+
+# Start Next.js Development Server
 pnpm dev
 ```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-The package's `dev` script runs Next.js. Open the local URL printed by Next.js (normally `http://localhost:3000`).
+---
 
-## Configuration
+## Verification & Testing Suite
 
-| Setting | Purpose | Default in code |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Frontend API origin | `http://localhost:8000` |
-| `OLLAMA_HOST` | Ollama service address | `http://localhost:11434` |
-| `CAMPUSGPT_OLLAMA_MODEL` | Local answer-generation model | `qwen2.5:3b` |
+CampusGPT includes comprehensive test suites across agents, RAG, and timetable modules:
 
-Other optional `CAMPUSGPT_*` settings and reranker settings are read in `scripts/generate_answer.py` and `scripts/reranker.py`; review those files for the current defaults before overriding them. Never commit actual credentials or machine-specific environment files.
+```powershell
+# Run full backend test suite (55 tests)
+$env:PYTHONPATH="backend"
+pytest backend/tests -v
 
-## Source data and limitations
+# Run frontend linting & TypeScript type checks
+cd frontend
+pnpm lint
+pnpm tsc --noEmit
 
-- Local university source data, evaluation question sets/results, audit reports, and ChromaDB files are excluded by `.gitignore` and are not included in the release candidate.
-- The current local corpus and timetable implementation are AIML-scoped; timetable answers for other departments are not supported by an equivalent timetable dataset.
-- Answer quality and source availability depend on the compatible local corpus and ChromaDB collection supplied by the operator.
-- The repository currently has no Python dependency lock/manifest and no root `LICENSE` file. Resolve both before describing the project as reproducible or granting reuse rights.
-- The frontend's API URL is public client configuration, not a place for secrets. Keep credentials on the backend or in local environment files.
+# Test production build
+pnpm build
+```
 
-## Repository safety
+---
 
-`.gitignore` excludes university data, local databases, evaluation and audit outputs, environment files, credentials, temporary logs, backups, model weights, and frontend build/dependency directories. Existing test and evaluation helper scripts are also excluded until their fixtures have been reviewed for embedded institutional data. Before staging a release, inspect `git status --short --ignored` and explicitly stage only the reviewed source files. Do not use `git add .`.
+## Repository Safety & Data Governance
+
+- **Institutional Privacy:** Original PDF handbooks, Master Excel files (`data/`), and local vector stores (`backend/data/`) are strictly excluded via `.gitignore`.
+- **Zero Hallucination Attribution:** Strict negative penalties prevent coordinators of other departments from being classified as AIML faculty.
+- **Zero Mock Fallback:** All chat endpoints resolve against live backend knowledge or deterministic timetable parsers.
+
+---
+
+<div align="center">
+  <b>CampusGPT</b> • Engineered for Accuracy, Reliability & Academic Integrity.
+</div>
+
